@@ -1,41 +1,76 @@
 import os
+import re
 
-# === CONFIGURATION ===
-input_file = "Assertions.inl"        # your big .inl file
-lines_per_chunk = 1000               # how many lines per chunk
-output_prefix = "Assertions_part"    # name prefix for parts
-combined_file = "Assertions_all.inl" # final include file name
-encoding = "utf-8"
+# CONFIG
+folder_path = "."  # Folder with .inl files
+backup = True
+max_lines_per_file = 500
 
-# === READ INPUT FILE ===
-with open(input_file, "r", encoding=encoding) as f:
-    lines = f.readlines()
+# REGEX
+macro_start_pattern = re.compile(r'#define\s+DUMPER7_ASSERTS_\w+')
+macro_end_pattern = re.compile(r'^(?!.*\\).*')  # The last line of the macro without '\'
 
-total = len(lines)
-chunks = (total + lines_per_chunk - 1) // lines_per_chunk
+# PROCESS FILES
+for root, dirs, files in os.walk(folder_path):
+    for filename in files:
+        if filename.endswith(".inl"):
+            filepath = os.path.join(root, filename)
 
-print(f"Splitting {input_file} ({total} lines) into {chunks} parts...")
+            # Backup
+            if backup:
+                os.rename(filepath, filepath + ".bak")
+                read_path = filepath + ".bak"
+            else:
+                read_path = filepath
 
-# === CREATE CHUNK FILES ===
-part_files = []
-for i in range(chunks):
-    start = i * lines_per_chunk
-    end = min((i + 1) * lines_per_chunk, total)
-    part_filename = f"{output_prefix}{i + 1}.inl"
-    part_files.append(part_filename)
+            with open(read_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
 
-    with open(part_filename, "w", encoding=encoding) as out:
-        out.writelines(lines[start:end])
+            new_lines = []
+            current_chunk = []
+            line_count = 0
+            file_count = 1
+            inside_macro = False
 
-    print(f"  → Created {part_filename} ({end - start} lines)")
+            for line in lines:
+                stripped = line.strip()
+                if macro_start_pattern.match(stripped):
+                    inside_macro = True
+                    macro_lines = [line]  # Adding new Macros
+                elif inside_macro:
+                    macro_lines.append(line)
+                    if not stripped.endswith("\\"):  # Ending of Macros!!!
+                        inside_macro = False
+                        # Adding macros in the current chunk
+                        current_chunk.extend(macro_lines)
+                        line_count += len(macro_lines)
+                        # Проверяем размер chunk
+                        if line_count >= max_lines_per_file:
+                            # Save this!!!
+                            split_filename = f"{os.path.splitext(filename)[0]}_part{file_count}.inl"
+                            with open(os.path.join(root, split_filename), "w", encoding="utf-8") as f_out:
+                                f_out.writelines(current_chunk)
+                            print(f"[+] Written {split_filename} ({line_count} lines)")
+                            file_count += 1
+                            current_chunk = []
+                            line_count = 0
+                else:
+                    current_chunk.append(line)
+                    line_count += 1
+                    if line_count >= max_lines_per_file:
+                        split_filename = f"{os.path.splitext(filename)[0]}_part{file_count}.inl"
+                        with open(os.path.join(root, split_filename), "w", encoding="utf-8") as f_out:
+                            f_out.writelines(current_chunk)
+                        print(f"[+] Written {split_filename} ({line_count} lines)")
+                        file_count += 1
+                        current_chunk = []
+                        line_count = 0
 
-# === CREATE MASTER INCLUDE FILE ===
-with open(combined_file, "w", encoding=encoding) as f:
-    f.write("// Auto-generated include file\n")
-    f.write("// This file includes all Assertion parts in order.\n\n")
-    for part in part_files:
-        f.write(f'#include "{part}"\n')
+            # Save the remaining lines
+            if current_chunk:
+                split_filename = f"{os.path.splitext(filename)[0]}_part{file_count}.inl"
+                with open(os.path.join(root, split_filename), "w", encoding="utf-8") as f_out:
+                    f_out.writelines(current_chunk)
+                print(f"[+] Written {split_filename} ({len(current_chunk)} lines)")
 
-print(f"\n✅ Done! Created {combined_file} with {chunks} includes.")
-print("\nNow replace your old include line with:\n")
-print(f'#include "{combined_file}"')
+print("\n All .inl files processed. Macros are completed successfully!!!")
