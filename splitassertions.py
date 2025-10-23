@@ -74,3 +74,4 @@ for root, dirs, files in os.walk(folder_path):
                 print(f"[+] Written {split_filename} ({len(current_chunk)} lines)")
 
 print("\n All .inl files processed. Macros are completed successfully!!!")
+
