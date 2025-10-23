@@ -44,7 +44,6 @@ for root, dirs, files in os.walk(folder_path):
                         # Adding macros in the current chunk
                         current_chunk.extend(macro_lines)
                         line_count += len(macro_lines)
-                        # Проверяем размер chunk
                         if line_count >= max_lines_per_file:
                             # Save this!!!
                             split_filename = f"{os.path.splitext(filename)[0]}_part{file_count}.inl"
@@ -74,4 +73,5 @@ for root, dirs, files in os.walk(folder_path):
                 print(f"[+] Written {split_filename} ({len(current_chunk)} lines)")
 
 print("\n All .inl files processed. Macros are completed successfully!!!")
+
 
