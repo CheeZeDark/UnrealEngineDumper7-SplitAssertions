@@ -1,7 +1,7 @@
 import os
 
 # === CONFIGURATION ===
-input_folder = "./SDK_fixed"       # Files for .inl :D
+input_folder = "."       # Files for .inl :D
 output_file = os.path.join(input_folder, "Assertions_All.inl")
 
 inl_files = [f for f in os.listdir(input_folder) if f.endswith(".inl")]
